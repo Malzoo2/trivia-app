@@ -1,0 +1,410 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Trivia Game
+Resources:
+  TriviaWebSocket:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: TriviaWebSocket
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+    Metadata:
+      SamResourceId: TriviaWebSocket
+  TriviaConnections:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: connectionId
+        AttributeType: S
+      - AttributeName: gameId
+        AttributeType: S
+      KeySchema:
+      - AttributeName: gameId
+        KeyType: HASH
+      - AttributeName: connectionId
+        KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+    Metadata:
+      SamResourceId: TriviaConnections
+  NewGameRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: TriviaWebSocket
+      RouteKey: newgame
+      AuthorizationType: NONE
+      OperationName: NewGameRoute
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: NewGameInteg
+    Metadata:
+      SamResourceId: NewGameRoute
+  NewGameInteg:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: TriviaWebSocket
+      Description: NewGame Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NewGameFunction.Arn}/invocations
+    Metadata:
+      SamResourceId: NewGameInteg
+  NewGameFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://aws-sam-cli-managed-default-samclisourcebucket-csxgigradtfk/trivia-app/41b46ee388c6fc63216e7a837e0d508f
+      Handler: app.trivia_newgame
+      Runtime: python3.9
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TriviaConnections
+          APIGW_ENDPOINT:
+            Fn::Sub: https://${TriviaWebSocket}.execute-api.${AWS::Region}.amazonaws.com/Prod
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaConnections
+      - Statement:
+        - Effect: Allow
+          Action:
+          - execute-api:ManageConnections
+          Resource:
+          - Fn::Sub: arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TriviaWebSocket}/*
+    Metadata:
+      SamResourceId: NewGameFunction
+  NewGamePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+    - TriviaWebSocket
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: NewGameFunction
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      SamResourceId: NewGamePermission
+  JoinGameRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: TriviaWebSocket
+      RouteKey: joingame
+      AuthorizationType: NONE
+      OperationName: JoinGameRoute
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: JoinGameInteg
+    Metadata:
+      SamResourceId: JoinGameRoute
+  JoinGameInteg:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: TriviaWebSocket
+      Description: JoinGame Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JoinGameFunction.Arn}/invocations
+    Metadata:
+      SamResourceId: JoinGameInteg
+  JoinGameFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://aws-sam-cli-managed-default-samclisourcebucket-csxgigradtfk/trivia-app/41b46ee388c6fc63216e7a837e0d508f
+      Handler: app.trivia_joingame
+      Runtime: python3.9
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TriviaConnections
+          APIGW_ENDPOINT:
+            Fn::Sub: https://${TriviaWebSocket}.execute-api.${AWS::Region}.amazonaws.com/Prod
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaConnections
+      - Statement:
+        - Effect: Allow
+          Action:
+          - execute-api:ManageConnections
+          Resource:
+          - Fn::Sub: arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TriviaWebSocket}/*
+    Metadata:
+      SamResourceId: JoinGameFunction
+  JoinGamePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+    - TriviaWebSocket
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: JoinGameFunction
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      SamResourceId: JoinGamePermission
+  StartGameRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: TriviaWebSocket
+      RouteKey: startgame
+      AuthorizationType: NONE
+      OperationName: StartGameRoute
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: StartGameInteg
+    Metadata:
+      SamResourceId: StartGameRoute
+  StartGameInteg:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: TriviaWebSocket
+      Description: StartGame Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StartGameFunction.Arn}/invocations
+    Metadata:
+      SamResourceId: StartGameInteg
+  StartGameFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://aws-sam-cli-managed-default-samclisourcebucket-csxgigradtfk/trivia-app/41b46ee388c6fc63216e7a837e0d508f
+      Handler: app.trivia_startgame
+      Runtime: python3.9
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TriviaConnections
+          APIGW_ENDPOINT:
+            Fn::Sub: https://${TriviaWebSocket}.execute-api.${AWS::Region}.amazonaws.com/Prod
+          STATE_MACHINE:
+            Ref: TriviaStateMachine
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaConnections
+      - Statement:
+        - Effect: Allow
+          Action:
+          - states:StartExecution
+          Resource:
+          - '*'
+      - Statement:
+        - Effect: Allow
+          Action:
+          - execute-api:ManageConnections
+          Resource:
+          - Fn::Sub: arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TriviaWebSocket}/*
+    Metadata:
+      SamResourceId: StartGameFunction
+  StartGamePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+    - TriviaWebSocket
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: StartGameFunction
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      SamResourceId: StartGamePermission
+  AnswerRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: TriviaWebSocket
+      RouteKey: answer
+      AuthorizationType: NONE
+      OperationName: AnswerRoute
+      Target:
+        Fn::Join:
+        - /
+        - - integrations
+          - Ref: AnswerInteg
+    Metadata:
+      SamResourceId: AnswerRoute
+  AnswerInteg:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: TriviaWebSocket
+      Description: Answer Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AnswerFunction.Arn}/invocations
+    Metadata:
+      SamResourceId: AnswerInteg
+  AnswerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://aws-sam-cli-managed-default-samclisourcebucket-csxgigradtfk/trivia-app/41b46ee388c6fc63216e7a837e0d508f
+      Handler: app.trivia_answer
+      Runtime: python3.9
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TriviaConnections
+          APIGW_ENDPOINT:
+            Fn::Sub: https://${TriviaWebSocket}.execute-api.${AWS::Region}.amazonaws.com/Prod
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaConnections
+      - Statement:
+        - Effect: Allow
+          Action:
+          - states:StartExecution
+          Resource:
+          - '*'
+      - Statement:
+        - Effect: Allow
+          Action:
+          - execute-api:ManageConnections
+          Resource:
+          - Fn::Sub: arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TriviaWebSocket}/*
+    Metadata:
+      SamResourceId: AnswerFunction
+  AnswerPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+    - TriviaWebSocket
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: AnswerFunction
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      SamResourceId: AnswerPermission
+  QuestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://aws-sam-cli-managed-default-samclisourcebucket-csxgigradtfk/trivia-app/41b46ee388c6fc63216e7a837e0d508f
+      Handler: app.trivia_question
+      Runtime: python3.9
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TriviaConnections
+          APIGW_ENDPOINT:
+            Fn::Sub: https://${TriviaWebSocket}.execute-api.${AWS::Region}.amazonaws.com/Prod
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaConnections
+      - Statement:
+        - Effect: Allow
+          Action:
+          - execute-api:ManageConnections
+          Resource:
+          - Fn::Sub: arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TriviaWebSocket}/*
+    Metadata:
+      SamResourceId: QuestionFunction
+  CalculateScoresFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://aws-sam-cli-managed-default-samclisourcebucket-csxgigradtfk/trivia-app/41b46ee388c6fc63216e7a837e0d508f
+      Handler: app.trivia_calculate_scores
+      Runtime: python3.9
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TriviaConnections
+          APIGW_ENDPOINT:
+            Fn::Sub: https://${TriviaWebSocket}.execute-api.${AWS::Region}.amazonaws.com/Prod
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TriviaConnections
+      - Statement:
+        - Effect: Allow
+          Action:
+          - execute-api:ManageConnections
+          Resource:
+          - Fn::Sub: arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${TriviaWebSocket}/*
+    Metadata:
+      SamResourceId: CalculateScoresFunction
+  Deployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    DependsOn:
+    - NewGameRoute
+    - JoinGameRoute
+    - NewGameRoute
+    - JoinGameRoute
+    - StartGameRoute
+    - AnswerRoute
+    Properties:
+      ApiId:
+        Ref: TriviaWebSocket
+    Metadata:
+      SamResourceId: Deployment
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      StageName: Prod
+      Description: Prod Stage
+      DeploymentId:
+        Ref: Deployment
+      ApiId:
+        Ref: TriviaWebSocket
+    Metadata:
+      SamResourceId: Stage
+  TriviaStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Policies:
+      - LambdaInvokePolicy:
+          FunctionName:
+            Ref: QuestionFunction
+      - LambdaInvokePolicy:
+          FunctionName:
+            Ref: CalculateScoresFunction
+      Definition:
+        StartAt: Question
+        States:
+          Question:
+            Type: Task
+            Resource:
+              Fn::GetAtt:
+              - QuestionFunction
+              - Arn
+            Next: QuestionWait
+            ResultPath: null
+          QuestionWait:
+            Type: Wait
+            SecondsPath: $.waitseconds
+            Next: Scores
+          Scores:
+            Type: Task
+            Resource:
+              Fn::GetAtt:
+              - CalculateScoresFunction
+              - Arn
+            Next: IsGameOver
+            ResultPath: $.iterator
+          IsGameOver:
+            Type: Choice
+            Choices:
+            - Variable: $.iterator.IsGameOver
+              BooleanEquals: true
+              Next: GameOver
+            Default: Question
+          GameOver:
+            Type: Succeed
+    Metadata:
+      SamResourceId: TriviaStateMachine
+Outputs:
+  TriviaWebSocketApi:
+    Description: API Gateway websockets endpoint
+    Value:
+      Fn::Sub: wss://${TriviaWebSocket}.execute-api.${AWS::Region}.amazonaws.com/${Stage}
